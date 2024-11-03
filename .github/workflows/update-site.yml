@@ -5,8 +5,21 @@ on:
   schedule:
     - cron: "*/10 * * * *"
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   test_and_deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
     runs-on: ubuntu-latest
 
     steps:
@@ -32,10 +45,14 @@ jobs:
         ONLINE=$(jq '.data[]|select(.user_login=="cailloute").started_at' stream)
         { [[ "$ONLINE" == "" ]] && echo site=non || echo site=oui ; } >> $GITHUB_ENV
 
-    - name: Deploy to GitHub Pages
-      if: github.ref == 'refs/heads/main'
-      uses: peaceiris/actions-gh-pages@v3
+    - name: Setup Pages
+      uses: actions/configure-pages@v5
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ${{ env.site }}
-        publish_branch: gh-pages
+        path: ${{ env.site }}
+
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
