@@ -26,6 +26,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Check for Success Marker
+      id: check_marker
+      run: |
+        if [ -f "oui.marker" ]; then
+          echo "Success marker found. Skipping workflow."
+          exit 0
+        fi
+
     - name: Run Tests
       id: test
       run: |
@@ -56,3 +64,14 @@ jobs:
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
+
+    - name: Set Marker if site=oui
+      if: env.site == 'oui'
+      run: |
+        touch oui.marker
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+        git add oui.marker
+        git commit -m "feat: Add success marker"
+        git push
+
