@@ -1,0 +1,41 @@
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "*/10 * * * *"
+
+jobs:
+  test_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Run Tests
+      id: test
+      run: |
+
+        TWTOKEN=$(curl -S -X POST 'https://id.twitch.tv/oauth2/token' \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            -d "client_id=${{ secrets.TWITCH_CLIENT }}&client_secret=${{ secrets.TWITCH_SECRET }}&grant_type=client_credentials" | jq  -r .access_token)
+
+
+        curl -S -X GET 'https://api.twitch.tv/helix/streams?type=live&user_login=cailloute' \
+            -H "Authorization: Bearer ${TWTOKEN}" \
+            -H "Client-Id: ${{ secrets.TWITCH_CLIENT }}" >stream
+
+    - name: Choose Site to Deploy
+      id: choose_site
+      run: |
+        ONLINE=$(jq '.data[]|select(.user_login=="cailloute").started_at' stream)
+        { [[ "$ONLINE" == "" ]] && echo site=non || echo site=oui ; } >> $GITHUB_ENV
+
+    - name: Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ${{ env.site }}
+        publish_branch: gh-pages
